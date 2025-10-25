@@ -52,3 +52,51 @@ def view():
             return render_template('view.html', data=[], error="Database not connected")
     except Exception as e:
         return render_template('view.html', data=[], error=f"Error fetching data: {e}")
+
+
+@main_bp.route('/todo', methods=['GET'])
+def todo_page():
+    """Render the To-Do creation page."""
+    return render_template('todo.html')
+@main_bp.route('/submittodoitem', methods=['POST'])
+def submittodoitem():
+    """Accept a todo item (itemName, itemDescription) and store it in MongoDB.
+
+    Accepts form-encoded or JSON body. Returns JSON with success status.
+    """
+    # Accept both form fields and JSON payloads
+    if request.is_json:
+        payload = request.get_json() or {}
+        item_name = payload.get('itemName') or payload.get('item_name')
+        item_description = payload.get('itemDescription') or payload.get('item_description')
+    else:
+        item_name = request.form.get('itemName') or request.form.get('item_name')
+        item_description = request.form.get('itemDescription') or request.form.get('item_description')
+
+    if not item_name:
+        return {"success": False, "error": "itemName is required"}, 400
+
+    try:
+        # store in a 'todos' collection (or env override)
+        todos_collection_name = 'todos'
+        collection = get_collection(todos_collection_name)
+        if collection is None:
+            # For form submissions, render the template with an error; for API return JSON
+            if request.is_json:
+                return {"success": False, "error": "Database not connected"}, 500
+            return render_template('todo.html', error="Database not connected")
+
+        doc = {
+            'itemName': item_name,
+            'itemDescription': item_description,
+            'created_at': datetime.utcnow()
+        }
+        collection.insert_one(doc)
+        # If this was a normal form submission, redirect to success page
+        if request.is_json:
+            return {"success": True, "message": "Todo item saved"}, 201
+        return redirect(url_for('main.success'))
+    except Exception as e:
+        if request.is_json:
+            return {"success": False, "error": str(e)}, 500
+        return render_template('todo.html', error=f"Error saving todo: {e}")

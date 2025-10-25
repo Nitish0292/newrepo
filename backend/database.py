@@ -39,8 +39,13 @@ def init_db():
         return False
 
 
-def get_collection():
-    """Return the configured collection or None if not available."""
+def get_collection(name: Optional[str] = None):
+    """Return the configured collection or None if not available.
+
+    If `name` is provided, return that collection name; otherwise return the
+    default collection configured by `_collection_name`.
+    """
     if _db is None:
         return None
-    return _db[_collection_name]
+    collection_name = name if name else _collection_name
+    return _db[collection_name]
